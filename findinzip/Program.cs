@@ -15,12 +15,19 @@ namespace findinzip
                 Console.WriteLine("findinzip <filename.zip> <file_mask>");
                 return 1;
             }
-            if (args.Length > 0 && !System.IO.File.Exists(args[0]))
+            try
             {
-                Console.WriteLine("Zip file does not exist");
+                if (args.Length > 0 && !System.IO.File.Exists(args[0]))
+                {
+                    Console.WriteLine("Zip file does not exist");
+                    return 1;
+                }
+            }
+            catch (Exception exz)
+            {
+                Console.WriteLine("Invalid filename");
                 return 1;
             }
-
             return 0;
         }
     }
