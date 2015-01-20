@@ -8,8 +8,20 @@ namespace findinzip
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
+            if (args == null || args.Length == 0)
+            {
+                Console.WriteLine("findinzip <filename.zip> <file_mask>");
+                return 1;
+            }
+            if (args.Length > 0 && !System.IO.File.Exists(args[0]))
+            {
+                Console.WriteLine("Zip file does not exist");
+                return 1;
+            }
+
+            return 0;
         }
     }
 }
