@@ -16,19 +16,6 @@ namespace findinzip
                 Console.WriteLine("findinzip <filename.zip> <file_mask> -text <string>");
                 return 1;
             }
-            try
-            {
-                if (args.Length > 0 && !System.IO.File.Exists(args[0]))
-                {
-                    Console.WriteLine("Zip file does not exist or access denied");
-                    return 1;
-                }
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("Invalid filename or access denied.");
-                return 1;
-            }
             string zipfilename = args[0];
             string zipfilemaskregex = convertGlobtoRegex(args[1]);
             bool searchFilenamesOnly = true;
@@ -41,18 +28,24 @@ namespace findinzip
             }
 
             Console.WriteLine("Beginning search in filename {0} matching only files {1} and searching for text \"{2}\"", zipfilename, zipfilemaskregex, searchText);
+            string[] foundfiles = System.IO.Directory.GetFiles(Environment.CurrentDirectory, zipfilename, System.IO.SearchOption.TopDirectoryOnly);
+            foreach (string zipfile in foundfiles)
+            {
+                if (String.IsNullOrEmpty(searchText))
+                    Iteratezipfile(zipfile, zipfilemaskregex);
+                else
+                    IterateZipFileSearchInFiles(zipfile, zipfilemaskregex, searchText);
+            }
+            if (foundfiles.Length == 0)
+                Console.WriteLine("No files found that match {0}", zipfilename);
 
-
-            if (String.IsNullOrEmpty(searchText))
-                Iteratezipfile(zipfilename, zipfilemaskregex);
-            else
-                IterateZipFileSearchInFiles(zipfilename, zipfilemaskregex, searchText);
             return 0;
         }
 
         private static void Iteratezipfile(string zipfilename, string filemask)
         {
             Unzipper u = new Unzipper(zipfilename);
+            zipfilename = System.IO.Path.GetFileName(zipfilename);
             foreach (ZipEntry ze in u.GetNextEntry())
             {
                 if (System.Text.RegularExpressions.Regex.IsMatch(ze.Name, filemask))
@@ -66,6 +59,7 @@ namespace findinzip
         private static void IterateZipFileSearchInFiles(string zipfilename, string filemask, string searchtext)
         {
             Unzipper u = new Unzipper(zipfilename);
+            zipfilename = System.IO.Path.GetFileName(zipfilename);
             foreach (ZipEntry ze in u.GetNextEntry())
             {
                 if (System.Text.RegularExpressions.Regex.IsMatch(ze.Name, filemask))
@@ -88,57 +82,25 @@ namespace findinzip
                 zipstream.CopyTo(unextractstream);
                 zipstream.Dispose();
             }
-            //Now search the unextracted stream
-            int searchlength = searchtext.Length;
-            byte[] buff = new byte[4096];
-            int bytesread = 1;
+            int lineposition = 0;
             unextractstream.Position = 0;
-            int streamposition = 0;
-            while (bytesread > 0)
+            System.IO.StreamReader sr = new System.IO.StreamReader(unextractstream);
+            while (true)
             {
-                bytesread = unextractstream.Read(buff, 0, 4096);
-                if (bytesread < searchlength)
+                string line = sr.ReadLine();
+                if (line == null)
                     break;
-                streamposition += bytesread - searchlength;
-                string chunk = System.Text.Encoding.ASCII.GetString(buff, 0, bytesread);
-                int chunki = 0;
-                while (chunki >= 0)
+                bool searchtextfound = line.Contains(searchtext);
+                lineposition++;
+                if (searchtextfound && line.Length < 512)
                 {
-                    chunki = chunk.IndexOf(searchtext, chunki);
-                    if (chunki >= 0)
-                    {
-                        //if(chunki > 20 &&  chunk.Length - (chunki) > 20 )
-                        //    Console.WriteLine("{0} - {1}: {2} = {3}", zipfilename, ze.Name, streamposition + chunki, chunk.Substring(chunki - 20, chunki + searchlength+20));
-                        //else
-                        //    Console.WriteLine("{0} - {1}: {2} = {3}", zipfilename, ze.Name, streamposition + chunki, searchtext);
-                        int prevcr = -1;
-                        int nextcr = -1;
-                        for (int i = chunki; i > 0; i--)
-                        {
-                            if (chunk[i] == '\n')
-                            {
-                                prevcr = i;
-                                break;
-                            }
-                        }
-                        for(int i = chunki; i < chunk.Length; i++)
-                        {
-                            if (chunk[i] == '\n')
-                            {
-                                nextcr = i;
-                                break;
-                            }
-                        }
-                        if(prevcr > 0 && nextcr > 0)
-                            Console.WriteLine("{0} - {1}: {2} = {3}", zipfilename, ze.Name, streamposition + chunki, chunk.Substring(prevcr + 1, ( nextcr - 1) - prevcr));
-                        else if(prevcr > 0)
-                            Console.WriteLine("{0} - {1}: {2} = {3}", zipfilename, ze.Name, streamposition + chunki, chunk.Substring(prevcr + 1, chunki + searchlength));
-                        chunki++;
-                    }
-
+                    Console.WriteLine("{0}({1}) Line {2}:\t{3}", zipfilename, ze.Name, lineposition, line);
+                }else if(searchtextfound && line.Length >= 512)
+                {
+                    Console.WriteLine("{0}({1}) Line {2}:\t<Line too long>", zipfilename, ze.Name, lineposition);
                 }
-
             }
+
             unextractstream.Close();
 
         }
