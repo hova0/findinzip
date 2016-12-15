@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ICSharpCode.SharpZipLib.Zip;
 
 namespace findinzip
 {
@@ -41,11 +42,25 @@ namespace findinzip
 
             Console.WriteLine("Beginning search in filename {0} matching only files {1} and searching for text \"{2}\"", zipfilename, zipfilemaskregex, searchText);
 
+            Iteratezipfile(zipfilename, zipfilemaskregex, searchText);
 
 
 
 
             return 0;
+        }
+
+        private static void Iteratezipfile(string zipfilename, string filemask, string searchtext)
+        {
+            Unzipper u = new Unzipper(zipfilename);
+            foreach(ZipEntry ze in u.GetNextEntry())
+            {
+                if(System.Text.RegularExpressions.Regex.IsMatch(ze.Name, filemask)) {
+                    Console.WriteLine("{0} - {1}", zipfilename,  ze.Name);
+                }
+
+            }
+            u.Dispose();
         }
 
         public static string convertGlobtoRegex(string glob)
@@ -93,6 +108,32 @@ namespace findinzip
 
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
+        private string _zipfile;
+
+        private ICSharpCode.SharpZipLib.Zip.ZipFile fz;
+
+        public Unzipper(string zipfile)
+        {
+            _zipfile = zipfile;
+            fz = new ICSharpCode.SharpZipLib.Zip.ZipFile(_zipfile);
+            
+        }
+
+        public IEnumerable<ZipEntry> GetNextEntry()
+        {
+            ZipEntry e = null;
+
+            //System.Collections.IEnumerator fzen = fz.GetEnumerator();
+            foreach (object x in fz)
+            {
+                if (x is ZipEntry)
+                {
+                    e = x as ZipEntry;
+                    yield return e;
+                }
+            }
+
+        }
 
         protected virtual void Dispose(bool disposing)
         {
@@ -101,6 +142,8 @@ namespace findinzip
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects).
+                    fz.Close();
+
                 }
 
                 // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
