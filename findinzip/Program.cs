@@ -10,7 +10,7 @@ namespace findinzip
     {
         static int Main(string[] args)
         {
-            if (args == null || args.Length == 0)
+            if (args == null || args.Length < 2)
             {
                 Console.WriteLine("findinzip <filename.zip> <file_mask> -text <string>");
                 return 1;
@@ -28,11 +28,65 @@ namespace findinzip
                 Console.WriteLine("Invalid filename or access denied.");
                 return 1;
             }
+            string zipfilename = args[0];
+            string zipfilemaskregex = convertGlobtoRegex(args[1]);
+            bool searchFilenamesOnly = true;
+            string searchText = null;
+            if(args.Length == 4 && args[2] == "-text")
+            {
+                //text search in files
+                searchFilenamesOnly = false;
+                searchText = args[3];
+            }
+
+            Console.WriteLine("Beginning search in filename {0} matching only files {1} and searching for text \"{2}\"", zipfilename, zipfilemaskregex, searchText);
+
+
+
 
 
             return 0;
         }
+
+        public static string convertGlobtoRegex(string glob)
+        {
+            string regexstr = "";
+            for (int i = 0; i < glob.Length; i++)
+            {
+                switch (glob[i])
+                {
+                    case '?':
+                        regexstr += ".";
+                        break;
+                    case '*':
+                        regexstr += ".*?";
+                        break;
+                    case '.':
+                        regexstr += @"\.";
+                        break;
+                    case '\\':
+                        regexstr += @"\\";
+                        break;
+                    case '+':
+                        regexstr += @"\+";
+                        break;
+                    case '(':
+                        regexstr += @"\(";
+                        break;
+                    case ')':
+                        regexstr += @"\)";
+                        break;
+                    default:
+                        regexstr += glob[i];
+                        break;
+                }
+            }
+            return regexstr;
+        }
+
     }
+
+  
 
     public class Unzipper : IDisposable
     {
