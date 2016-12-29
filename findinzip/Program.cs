@@ -31,7 +31,12 @@ namespace findinzip
             }
 
             Console.WriteLine("Beginning search in filename {0} matching only files {1} and searching for text \"{2}\"", zipfilename, zipfilemaskregex, searchText);
-            string[] foundfiles = System.IO.Directory.GetFiles(Environment.CurrentDirectory, zipfilename, System.IO.SearchOption.TopDirectoryOnly);
+            string[] foundfiles;
+            if (!System.IO.File.Exists(zipfilename))
+                foundfiles = System.IO.Directory.GetFiles(Environment.CurrentDirectory, zipfilename, System.IO.SearchOption.TopDirectoryOnly);
+            else
+                foundfiles = new string[1] { zipfilename };
+
             foreach (string zipfile in foundfiles)
             {
                 if (String.IsNullOrEmpty(searchText))
