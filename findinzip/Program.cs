@@ -66,14 +66,13 @@ namespace findinzip
             zipfilename = System.IO.Path.GetFileName(zipfilename);
             foreach (string ze in u.GetNextEntry())
             {
-                Console.WriteLine(ze);
                 if (System.Text.RegularExpressions.Regex.IsMatch(ze, filemask))
                 {
-                    //Console.WriteLine("{0} - {1}", zipfilename, ze.Name);
                     SearchinZipEntry(ze,  searchtext, zipfilename, u);
                 }
 
             }
+            
             u.Dispose();
         }
 
@@ -87,6 +86,7 @@ namespace findinzip
             //zipstream.Dispose();
             fz.fz.ExtractFile(ze, unextractstream);
 
+            
 
             int lineposition = 0;
             unextractstream.Position = 0;
@@ -110,7 +110,7 @@ namespace findinzip
             sr.Dispose();
 
             unextractstream.Close();
-
+            unextractstream.Dispose();
         }
         //Converts globs to regex so that we can match on files inside zips
         public static string convertGlobtoRegex(string glob)
@@ -192,12 +192,12 @@ namespace findinzip
             {
                 zipi++;
                 
-                if (!String.IsNullOrEmpty(x) )
+                if (String.IsNullOrEmpty(x) )
                     continue;
                 yield return x;
                 
             }
-            Console.WriteLine("Zip index : {0}", zipi);
+            //Console.WriteLine("Zip index : {0}", zipi);
 
         }
 
