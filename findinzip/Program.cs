@@ -13,9 +13,9 @@ namespace findinzip
         static int Main(string[] args)
         {
 
+            
 
 
-            SevenZip.SevenZipBase.SetLibraryPath(Program.Get7zLocation());
             if (args == null || args.Length < 2)
             {
                 Console.WriteLine("findinzip <filename.zip> <file_mask> -text <string>");
@@ -31,13 +31,7 @@ namespace findinzip
             }
 
             Console.WriteLine("Beginning search in filename {0} matching only files {1} and searching for text \"{2}\"", zipfilename, zipfilemaskregex, searchText);
-
-            string[] foundfiles;
-            if (!System.IO.File.Exists(zipfilename))
-                foundfiles = System.IO.Directory.GetFiles(Environment.CurrentDirectory, zipfilename, System.IO.SearchOption.TopDirectoryOnly);
-            else
-                foundfiles = new string[1] { zipfilename };
-            
+            string[] foundfiles = System.IO.Directory.GetFiles(Environment.CurrentDirectory, zipfilename, System.IO.SearchOption.TopDirectoryOnly);
             foreach (string zipfile in foundfiles)
             {
                 if (String.IsNullOrEmpty(searchText))
@@ -68,118 +62,55 @@ namespace findinzip
         //Searches for text inside files inside zip files
         private static void IterateZipFileSearchInFiles(string zipfilename, string filemask, string searchtext)
         {
-            //Unzipper u = new Unzipper(zipfilename);
-            SevenZip.SevenZipExtractor se = new SevenZip.SevenZipExtractor(zipfilename);
-            string[] allfiles = new string[se.FilesCount];
-            se.ArchiveFileNames.CopyTo(allfiles, 0);
-            se.Dispose();
-            int maxfiles = allfiles.Length;   // more than 2b files?
-
-            //zipfilename = System.IO.Path.GetFileName(zipfilename);
-            //System.Threading.Tasks.Parallel.ForEach<string>(allfiles/*, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 4 }*/, ze =>
-            System.Threading.Tasks.Parallel.For(0, maxfiles, ze => 
+            Unzipper u = new Unzipper(zipfilename);
+            zipfilename = System.IO.Path.GetFileName(zipfilename);
+            foreach (string ze in u.GetNextEntry())
             {
-                //foreach (string ze in u.GetNextEntry())
-                //{
-                if (System.Text.RegularExpressions.Regex.IsMatch(allfiles[ze], filemask))
+                if (System.Text.RegularExpressions.Regex.IsMatch(ze, filemask))
                 {
-                    try
-                    {
-                        SearchinZipEntry(ze, searchtext, zipfilename);
-                    }catch(Exception f)
-                    {
-                        Console.WriteLine("Failed to extract {0} from {1}", ze, zipfilename);
-                        throw;
-                    }
+                    SearchinZipEntry(ze,  searchtext, zipfilename, u);
                 }
 
-            });
+            }
             
-            
+            u.Dispose();
         }
 
         //Searches for text inside a ZipEntry (file inside zip)
-        private static void SearchinZipEntry(string ze, string searchtext, string zipfilename)
+        private static void SearchinZipEntry(string ze, string searchtext, string zipfilename, Unzipper fz)
         {
             System.IO.MemoryStream unextractstream = new System.IO.MemoryStream();
 
             //System.IO.Stream zipstream = new //ze.Open();
             //zipstream.CopyTo(unextractstream);
             //zipstream.Dispose();
-            using (SevenZip.SevenZipExtractor se = new SevenZip.SevenZipExtractor(zipfilename))
+            fz.fz.ExtractFile(ze, unextractstream);
+
+            
+
+            int lineposition = 0;
+            unextractstream.Position = 0;
+            System.IO.StreamReader sr = new System.IO.StreamReader(unextractstream);
+            while (true)
             {
-                se.ExtractFile(ze, unextractstream);
-                //fz.fz.ExtractFile(ze, unextractstream);
-                string shortzipfilename = System.IO.Path.GetFileName(zipfilename);
-
-
-                int lineposition = 0;
-                unextractstream.Position = 0;
-                System.IO.StreamReader sr = new System.IO.StreamReader(unextractstream);
-                while (true)
+                string line = sr.ReadLine();
+                if (line == null)
+                    break;
+                bool searchtextfound = line.Contains(searchtext);
+                lineposition++;
+                if (searchtextfound && line.Length < 512)
                 {
-                    string line = sr.ReadLine();
-                    if (line == null)
-                        break;
-                    bool searchtextfound = line.Contains(searchtext);
-                    lineposition++;
-                    if (searchtextfound && line.Length < 512)
-                    {
-                        Console.WriteLine("{0}({1}) Line {2}:\t{3}", shortzipfilename, ze, lineposition, line);
-                    }
-                    else if (searchtextfound && line.Length >= 512)
-                    {
-                        Console.WriteLine("{0}({1}) Line {2}:\t<Line too long>", shortzipfilename, ze, lineposition);
-                    }
+                    Console.WriteLine("{0}({1}) Line {2}:\t{3}", zipfilename, ze, lineposition, line);
                 }
-                sr.Dispose();
-
-                unextractstream.Close();
-                unextractstream.Dispose();
-                se.Dispose();
-            }
-        }
-        //Searches for text inside a ZipEntry (file inside zip)
-        private static void SearchinZipEntry(int ze, string searchtext, string zipfilename)
-        {
-            System.IO.MemoryStream unextractstream = new System.IO.MemoryStream();
-
-            //System.IO.Stream zipstream = new //ze.Open();
-            //zipstream.CopyTo(unextractstream);
-            //zipstream.Dispose();
-            using (SevenZip.SevenZipExtractor se = new SevenZip.SevenZipExtractor(zipfilename))
-            {
-
-                se.ExtractFile(ze, unextractstream);
-                //fz.fz.ExtractFile(ze, unextractstream);
-                string shortzipfilename = System.IO.Path.GetFileName(zipfilename);
-
-
-                int lineposition = 0;
-                unextractstream.Position = 0;
-                System.IO.StreamReader sr = new System.IO.StreamReader(unextractstream);
-                while (true)
+                else if (searchtextfound && line.Length >= 512)
                 {
-                    string line = sr.ReadLine();
-                    if (line == null)
-                        break;
-                    bool searchtextfound = line.Contains(searchtext);
-                    lineposition++;
-                    if (searchtextfound && line.Length < 512)
-                    {
-                        Console.WriteLine("{0}({1}) Line {2}:\t{3}", shortzipfilename, ze, lineposition, line);
-                    }
-                    else if (searchtextfound && line.Length >= 512)
-                    {
-                        Console.WriteLine("{0}({1}) Line {2}:\t<Line too long>", shortzipfilename, ze, lineposition);
-                    }
+                    Console.WriteLine("{0}({1}) Line {2}:\t<Line too long>", zipfilename, ze, lineposition);
                 }
-                sr.Dispose();
-
-                unextractstream.Close();
-                unextractstream.Dispose();
-                se.Dispose();
             }
+            sr.Dispose();
+
+            unextractstream.Close();
+            unextractstream.Dispose();
         }
         //Converts globs to regex so that we can match on files inside zips
         public static string convertGlobtoRegex(string glob)
@@ -218,21 +149,6 @@ namespace findinzip
             return regexstr;
         }
 
-        public static string Get7zLocation()
-        {
-            //locate 7z.dll!
-            string s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\7-zip\\7z.dll";
-            if (!System.IO.File.Exists(s7zlocation))
-            {
-                //Console.WriteLine("7z dll not found in " + s7zlocation);
-                s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\7-zip\\7z.dll";
-                if (!System.IO.File.Exists(s7zlocation))
-                    throw new Exception("7z dll not found in " + s7zlocation);
-            }
-            //Console.WriteLine("7z DLL loaded from " + s7zlocation);
-            return s7zlocation;
-        }
-
     }
 
 
@@ -254,15 +170,23 @@ namespace findinzip
             //fz = ZipFile.OpenRead(_zipfile);
             //fz.UseZip64 = UseZip64.On;
 
-           
-            SevenZip.SevenZipBase.SetLibraryPath(Program.Get7zLocation());
+            //locate 7z.dll!
+            string s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\7-zip\\7z.dll";
+            if (!System.IO.File.Exists(s7zlocation))
+            {
+                Console.WriteLine("7z dll not found in " + s7zlocation);
+                s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\7-zip\\7z.dll";
+                if (!System.IO.File.Exists(s7zlocation))
+                    throw new Exception("7z dll not found in " + s7zlocation);
+            }
+            Console.WriteLine("7z DLL loaded from " + s7zlocation);
+            SevenZip.SevenZipBase.SetLibraryPath(s7zlocation);
             fz = new SevenZip.SevenZipExtractor(zipfile);
         }
 
         public IEnumerable<string> GetNextEntry()
         {
             int zipi = 0;
-            
             //System.Collections.IEnumerator fzen = fz.GetEnumerator();
             foreach (string x in fz.ArchiveFileNames)
             {
