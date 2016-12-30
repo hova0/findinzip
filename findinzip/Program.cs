@@ -10,18 +10,31 @@ namespace findinzip
 {
     class Program
     {
+        public static string s7zlocation;
+
         static int Main(string[] args)
         {
+            //locate 7z.dll!
+            s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\7-zip\\7z.dll";
+            if (!System.IO.File.Exists(s7zlocation))
+            {
+                Console.WriteLine("7z dll not found in " + s7zlocation);
+                s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\7-zip\\7z.dll";
+                if (!System.IO.File.Exists(s7zlocation))
+                    throw new Exception("7z dll not found in " + s7zlocation + ".  Program cannont continue \r\n Install 7-Zip!");
+            }
+            Console.WriteLine("7z DLL loaded from " + s7zlocation);
+            SevenZip.SevenZipBase.SetLibraryPath(s7zlocation);
 
-            
-
-
-            if (args == null || args.Length < 2 || args[2] != "-text")
+            // Only accept 2 or 4 arguments
+            if (args == null || args.Length > 4 || args.Length < 2 || args.Length == 3)
             {
                 PrintHelp();
-                //Console.WriteLine("findinzip <filename.zip> <file_mask> -text <string>");
                 return 1;
             }
+
+            if(args.Length >= 3 && args[2] != "-text")
+            { PrintHelp(); return 1; }
             string zipfilename = args[0];
             string zipfilemaskregex = convertGlobtoRegex(args[1]);
             string searchText = null;
@@ -29,9 +42,14 @@ namespace findinzip
             {
                 //text search in files
                 searchText = args[3];
-            }
+                if(String.IsNullOrEmpty(searchText))
+                {
+                    PrintHelp();
+                    return 1;
+                }
+            } 
 
-            Console.WriteLine("Beginning search in filename {0} matching only files {1} and searching for text \"{2}\"", zipfilename, zipfilemaskregex, searchText);
+            Console.WriteLine("Beginning search in filename {0} matching only files {1} and searching for text \"{2}\"", zipfilename, args[1], searchText);
             string[] foundfiles;
             if (!System.IO.File.Exists(zipfilename))
             {
@@ -175,7 +193,6 @@ namespace findinzip
     public class Unzipper : IDisposable
     {
 
-        #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
         private string _zipfile;
 
@@ -184,39 +201,22 @@ namespace findinzip
         public Unzipper(string zipfile)
         {
             _zipfile = zipfile;
-            //fz = ZipFile.OpenRead(_zipfile);
-            //fz.UseZip64 = UseZip64.On;
-
-            //locate 7z.dll!
-            string s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\7-zip\\7z.dll";
-            if (!System.IO.File.Exists(s7zlocation))
-            {
-                Console.WriteLine("7z dll not found in " + s7zlocation);
-                s7zlocation = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\7-zip\\7z.dll";
-                if (!System.IO.File.Exists(s7zlocation))
-                    throw new Exception("7z dll not found in " + s7zlocation);
-            }
-            Console.WriteLine("7z DLL loaded from " + s7zlocation);
-            SevenZip.SevenZipBase.SetLibraryPath(s7zlocation);
             fz = new SevenZip.SevenZipExtractor(zipfile);
         }
 
         public IEnumerable<string> GetNextEntry()
         {
             int zipi = 0;
-            //System.Collections.IEnumerator fzen = fz.GetEnumerator();
             foreach (string x in fz.ArchiveFileNames)
             {
                 zipi++;
-                
                 if (String.IsNullOrEmpty(x) )
                     continue;
                 yield return x;
-                
             }
-            //Console.WriteLine("Zip index : {0}", zipi);
-
         }
+
+        #region IDisposable Support
 
         protected virtual void Dispose(bool disposing)
         {
